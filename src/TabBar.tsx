@@ -9,6 +9,7 @@ import {
   LayoutChangeEvent,
   I18nManager,
   Platform,
+  Text,
 } from 'react-native';
 import Animated from 'react-native-reanimated';
 import TabBarItem from './TabBarItem';
@@ -61,6 +62,7 @@ export type Props<T extends Route> = SceneRendererProps & {
 type State = {
   layout: Layout;
   tabWidths: number[];
+  renderRemainingItems: boolean;
 };
 
 export default class TabBar<T extends Route> extends React.Component<
@@ -83,10 +85,11 @@ export default class TabBar<T extends Route> extends React.Component<
       <TabBarIndicator {...props} />
     ),
   };
-
+  private tabWidths: number[] = [];
   state = {
     layout: { width: 0, height: 0 },
     tabWidths: this.props.navigationState.routes.map(() => 0),
+    renderRemainingItems: this.props.dynamicWidth,
   };
 
   componentDidUpdate(prevProps: Props<T>, prevState: State) {
@@ -98,6 +101,12 @@ export default class TabBar<T extends Route> extends React.Component<
       this.props.dynamicWidth
     ) {
       this.resetScroll(this.props.navigationState.index);
+    }
+
+    if (this.state.renderRemainingItems) {
+      setTimeout(() => {
+        this.setState({ renderRemainingItems: false });
+      }, 0);
     }
   }
 
@@ -248,6 +257,12 @@ export default class TabBar<T extends Route> extends React.Component<
       )
   );
 
+  private shouldRender = (index: number) => {
+    if (!this.state.renderRemainingItems) return true;
+
+    return this.props.navigationState.index + 2 >= index;
+  };
+
   render() {
     const {
       dynamicWidth,
@@ -298,6 +313,7 @@ export default class TabBar<T extends Route> extends React.Component<
               : null,
           ]}
         >
+          {/* {this.state.tabWidths.length > this.props.navigationState.index  && */}
           {this.props.renderIndicator({
             dynamicWidth,
             tabWidths,
@@ -341,45 +357,50 @@ export default class TabBar<T extends Route> extends React.Component<
               this.scrollView = el && el.getNode();
             }}
           >
-            {routes.map((route: T, i: number) => (
-              <TabBarItem
-                onLayout={({ nativeEvent: { layout } }) =>
-                  this.setState(prevState => {
+            {routes.map((route: T, i: number) =>
+              this.shouldRender(i) || true ? (
+                <TabBarItem
+                  onLayout={({ nativeEvent: { layout } }) => {
                     if (!dynamicWidth) return;
-                    const tabWidths = [...prevState.tabWidths];
-                    tabWidths[i] = layout.width || tabWidth;
-                    return {
-                      tabWidths,
-                    };
-                  })
-                }
-                key={route.key}
-                dynamicWidth={dynamicWidth}
-                position={position}
-                route={route}
-                tabWidth={tabWidth}
-                navigationState={navigationState}
-                scrollEnabled={scrollEnabled}
-                getAccessibilityLabel={getAccessibilityLabel}
-                getAccessible={getAccessible}
-                getLabelText={getLabelText}
-                getTestID={getTestID}
-                renderBadge={renderBadge}
-                renderIcon={renderIcon}
-                renderLabel={renderLabel}
-                activeColor={activeColor}
-                inactiveColor={inactiveColor}
-                pressColor={pressColor}
-                pressOpacity={pressOpacity}
-                onPress={() => {
-                  onTabPress && onTabPress({ route });
-                  this.props.jumpTo(route.key);
-                }}
-                onLongPress={() => onTabLongPress && onTabLongPress({ route })}
-                labelStyle={labelStyle}
-                style={tabStyle}
-              />
-            ))}
+
+                    this.tabWidths.push(layout.width || tabWidth);
+
+                    if (
+                      this.tabWidths.length === navigationState.routes.length
+                    ) {
+                      this.setState({ tabWidths: [...this.tabWidths] });
+                    }
+                  }}
+                  key={route.key}
+                  dynamicWidth={dynamicWidth}
+                  position={position}
+                  route={route}
+                  tabWidth={tabWidth}
+                  navigationState={navigationState}
+                  scrollEnabled={scrollEnabled}
+                  getAccessibilityLabel={getAccessibilityLabel}
+                  getAccessible={getAccessible}
+                  getLabelText={getLabelText}
+                  getTestID={getTestID}
+                  renderBadge={renderBadge}
+                  renderIcon={renderIcon}
+                  renderLabel={renderLabel}
+                  activeColor={activeColor}
+                  inactiveColor={inactiveColor}
+                  pressColor={pressColor}
+                  pressOpacity={pressOpacity}
+                  onPress={() => {
+                    onTabPress && onTabPress({ route });
+                    this.props.jumpTo(route.key);
+                  }}
+                  onLongPress={() =>
+                    onTabLongPress && onTabLongPress({ route })
+                  }
+                  labelStyle={labelStyle}
+                  style={tabStyle}
+                />
+              ) : null
+            )}
           </Animated.ScrollView>
         </View>
       </Animated.View>
